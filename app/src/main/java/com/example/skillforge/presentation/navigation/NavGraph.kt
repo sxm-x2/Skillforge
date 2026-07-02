@@ -12,14 +12,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.example.skillforge.data.remote.api.RetrofitInstance
-import com.example.skillforge.data.repository.CourseRepository
+import com.example.skillforge.data.repository.CourseRepositoryImpl
 import com.example.skillforge.presentation.course.CourseDetailScreen
 import com.example.skillforge.presentation.home.HomeScreen
 import com.example.skillforge.presentation.lesson.LessonScreen
 
 @Composable
 fun NavGraph(navController: NavHostController) {
-    val repository = remember { CourseRepository(RetrofitInstance.apiService) }
+    val repository = remember { CourseRepositoryImpl(RetrofitInstance.apiService) }
     val factory = remember { ViewModelFactory(repository) }
     
     NavHost(
