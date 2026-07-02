@@ -24,10 +24,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
 import com.example.skillforge.data.remote.dto.Category
 import com.example.skillforge.data.remote.dto.Course
-import com.example.skillforge.ui.theme.PrimaryTeal
-import com.example.skillforge.ui.theme.SecondaryOrange
+import com.example.skillforge.ui.theme.*
 import com.example.skillforge.util.UiState
 import androidx.core.graphics.toColorInt
 
@@ -41,7 +42,7 @@ fun HomeScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = Color.White
+        containerColor = Background
     ) { padding ->
         Column(
             modifier = Modifier
@@ -68,17 +69,19 @@ fun HomeScreen(
                     }
                 }
                 is UiState.Success -> {
-                    val coursesWithColor = state.data.categories.flatMap { category ->
-                        category.courses.map { it to category.iconColor }
-                    }
-                    val filteredCourses = coursesWithColor.filter { (course, _) ->
-                        course.title.contains(searchQuery, ignoreCase = true) ||
-                                course.instructor.name.contains(searchQuery, ignoreCase = true)
+                    val filteredCourses = remember(searchQuery, state) {
+                        val coursesWithColor = state.data.categories.flatMap { category ->
+                            category.courses.map { it to category.iconColor }
+                        }
+                        coursesWithColor.filter { (course, _) ->
+                            course.title.contains(searchQuery, ignoreCase = true) ||
+                                    course.instructor.name.contains(searchQuery, ignoreCase = true)
+                        }
                     }
 
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 16.dp)
+                        contentPadding = PaddingValues(bottom = 24.dp)
                     ) {
                         item {
                             HomeHeader()
@@ -89,7 +92,10 @@ fun HomeScreen(
                             CategorySection(categories = state.data.categories)
                             SectionHeader(title = "Popular courses")
                         }
-                        items(filteredCourses) { (course, color) ->
+                        items(
+                            items = filteredCourses,
+                            key = { it.first.id }
+                        ) { (course, color) ->
                             CourseItem(
                                 course = course,
                                 categoryColor = color,
@@ -108,41 +114,43 @@ private fun HomeHeader() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(24.dp),
+            .padding(horizontal = 24.dp, vertical = 28.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
             Text(
                 text = "Welcome back",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray
+                style = MaterialTheme.typography.bodyLarge,
+                color = TextSecondary,
+                fontWeight = FontWeight.Medium
             )
             Text(
                 text = "Find your next skill",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Black,
+                color = TextPrimary
             )
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(44.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFF3F4F6)),
+                    .background(Color(0xFFF1F5F9)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Notifications,
                     contentDescription = null,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(22.dp),
+                    tint = TextDark
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(44.dp)
                     .clip(CircleShape)
                     .background(PrimaryTeal),
                 contentAlignment = Alignment.Center
@@ -150,8 +158,8 @@ private fun HomeHeader() {
                 Text(
                     text = "AS",
                     color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+                    fontWeight = FontWeight.Black,
+                    fontSize = 15.sp
                 )
             }
         }
@@ -161,27 +169,26 @@ private fun HomeHeader() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
-    TextField(
+    OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp)
-            .clip(RoundedCornerShape(16.dp)),
-        placeholder = { Text("Search courses, topics...", color = Color.Gray) },
+            .padding(horizontal = 24.dp, vertical = 8.dp),
+        placeholder = { Text("Search courses, topics...", color = TextSecondary) },
         leadingIcon = {
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = null,
-                tint = Color.Gray
+                tint = Primary
             )
         },
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = Color(0xFFF3F4F6),
-            unfocusedContainerColor = Color(0xFFF3F4F6),
-            disabledContainerColor = Color(0xFFF3F4F6),
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
+        shape = RoundedCornerShape(16.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            unfocusedContainerColor = Surface,
+            focusedContainerColor = Surface,
+            unfocusedBorderColor = Border,
+            focusedBorderColor = Primary.copy(alpha = 0.5f),
         ),
         singleLine = true
     )
@@ -189,14 +196,14 @@ private fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
 
 @Composable
 private fun CategorySection(categories: List<Category>) {
-    Column(modifier = Modifier.padding(top = 24.dp)) {
+    Column(modifier = Modifier.padding(vertical = 16.dp)) {
         SectionHeader(title = "Categories")
         LazyRow(
             contentPadding = PaddingValues(horizontal = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.padding(top = 16.dp)
+            modifier = Modifier.padding(top = 12.dp)
         ) {
-            items(categories) { category ->
+            items(categories, key = { it.id }) { category ->
                 CategoryCard(category)
             }
         }
@@ -215,11 +222,12 @@ private fun SectionHeader(title: String) {
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary
         )
         Text(
             text = "See all",
-            color = PrimaryTeal,
+            color = Primary,
             fontWeight = FontWeight.Medium,
             modifier = Modifier.clickable { }
         )
@@ -232,42 +240,45 @@ private fun CategoryCard(category: Category) {
         modifier = Modifier
             .width(160.dp)
             .height(180.dp),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Border)
     ) {
         Column(
             modifier = Modifier
-                .padding(16.dp)
+                .padding(20.dp)
                 .fillMaxSize(),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(parseSafeColor(category.iconColor).copy(alpha = 0.2f)),
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(parseSafeColor(category.iconColor).copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
                         .size(24.dp)
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(RoundedCornerShape(7.dp))
                         .background(parseSafeColor(category.iconColor))
                 )
             }
             Column {
                 Text(
                     text = category.name,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    lineHeight = 20.sp
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    lineHeight = 22.sp,
+                    color = TextPrimary
                 )
                 Text(
                     text = "${category.courseCount} courses",
-                    color = Color.Gray,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 4.dp)
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp),
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
@@ -281,11 +292,12 @@ private fun CourseItem(course: Course, categoryColor: String, onClick: () -> Uni
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 8.dp)
+            .padding(horizontal = 24.dp, vertical = 10.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Border)
     ) {
         Row(
             modifier = Modifier
@@ -294,52 +306,65 @@ private fun CourseItem(course: Course, categoryColor: String, onClick: () -> Uni
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
-                model = course.thumbnailUrl,
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(course.thumbnailUrl)
+                    .crossfade(true)
+                    .build(),
                 contentDescription = null,
                 modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(16.dp)),
+                    .size(90.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(PrimaryLight),
                 contentScale = ContentScale.Crop
             )
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = course.level.uppercase(),
-                    color = themeColor, // Match category color for level tag
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Surface(
+                    color = PrimaryLight,
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = course.level.uppercase(),
+                        color = Primary,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = course.title,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    maxLines = 1
+                    maxLines = 1,
+                    color = TextPrimary
                 )
                 Text(
-                    text = course.instructor.name,
-                    color = Color.Gray,
-                    fontSize = 12.sp
+                    text = "by ${course.instructor.name}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
                 )
                 Row(
-                    modifier = Modifier.padding(top = 4.dp),
+                    modifier = Modifier.padding(top = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Default.Star,
                         contentDescription = null,
-                        tint = SecondaryOrange,
-                        modifier = Modifier.size(14.dp)
+                        tint = Star,
+                        modifier = Modifier.size(16.dp)
                     )
                     Text(
                         text = " ${course.rating}",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
+                        fontSize = 13.sp,
+                        color = TextPrimary
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
                     Text(
                         text = "🕒 ${course.durationHours}h",
-                        color = Color.Gray,
-                        fontSize = 12.sp
+                        color = TextSecondary,
+                        fontSize = 13.sp
                     )
                 }
             }

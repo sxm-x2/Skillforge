@@ -28,10 +28,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.platform.LocalContext
 import com.example.skillforge.data.remote.dto.Course
 import com.example.skillforge.data.remote.dto.Lesson
-import com.example.skillforge.ui.theme.PrimaryTeal
-import com.example.skillforge.ui.theme.SecondaryOrange
+import com.example.skillforge.ui.theme.*
 import com.example.skillforge.util.UiState
 import java.util.Locale
 import androidx.core.graphics.toColorInt
@@ -50,7 +51,7 @@ fun CourseDetailScreen(
     }
 
     Scaffold(
-        containerColor = Color.White,
+        containerColor = Background,
         bottomBar = {
             if (uiState is UiState.Success) {
                 EnrollBottomBar()
@@ -94,12 +95,12 @@ fun CourseDetailScreen(
 private fun EnrollBottomBar() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = Color.White,
-        shadowElevation = 8.dp
+        color = Surface,
+        shadowElevation = 24.dp
     ) {
         Row(
             modifier = Modifier
-                .padding(24.dp)
+                .padding(horizontal = 24.dp, vertical = 24.dp)
                 .navigationBarsPadding(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
@@ -107,30 +108,32 @@ private fun EnrollBottomBar() {
             Column {
                 Text(
                     text = "PRICE",
-                    color = Color.Gray,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.5.sp
                 )
                 Text(
                     text = "Free",
-                    color = PrimaryTeal,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
+                    color = Primary,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Black
                 )
             }
             Button(
                 onClick = { },
                 modifier = Modifier
-                    .fillMaxWidth(0.7f)
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal)
+                    .fillMaxWidth(0.65f)
+                    .height(64.dp),
+                shape = RoundedCornerShape(32.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
             ) {
                 Text(
                     text = "Enroll now",
                     color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.ExtraBold
                 )
             }
         }
@@ -151,7 +154,7 @@ private fun CourseDetailContent(
             HeroSection(course = course, categoryColor = categoryColor, onBackClick = onBackClick)
         }
         item {
-            CourseInfoSection(course = course, categoryColor = categoryColor)
+            CourseInfoSection(course = course)
         }
         item {
             InstructorSection(course = course)
@@ -173,20 +176,49 @@ private fun CourseDetailContent(
 
 @Composable
 private fun HeroSection(course: Course, categoryColor: String, onBackClick: () -> Unit) {
-    val themeColor = try { Color(categoryColor.toColorInt()) } catch (_: Exception) { PrimaryTeal }
+    val themeColor = try { Color(categoryColor.toColorInt()) } catch (_: Exception) { Primary }
+    val isThumbnailValid = course.thumbnailUrl.isNotBlank() && course.thumbnailUrl.startsWith("http")
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(320.dp)
-            .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
+            .clip(RoundedCornerShape(bottomStart = 40.dp, bottomEnd = 40.dp))
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(Primary, Primary.copy(alpha = 0.85f))
+                )
+            )
     ) {
-        AsyncImage(
-            model = course.thumbnailUrl,
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
+        // Decorative Circles
+        Box(
+            modifier = Modifier
+                .offset(x = (-60).dp, y = (-60).dp)
+                .size(220.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.08f))
         )
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = 50.dp, y = 30.dp)
+                .size(160.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.06f))
+        )
+
+        if (isThumbnailValid) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(course.thumbnailUrl)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                alpha = 0.6f
+            )
+        }
         
         Box(
             modifier = Modifier
@@ -194,9 +226,13 @@ private fun HeroSection(course: Course, categoryColor: String, onBackClick: () -
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
+                            Color.Black.copy(alpha = 0.35f),
                             Color.Transparent,
-                            Color.Black.copy(alpha = 0.5f)
-                        )
+                            Color.White.copy(alpha = 0.4f),
+                            Color.White.copy(alpha = 0.95f)
+                        ),
+                        startY = 0f,
+                        endY = Float.POSITIVE_INFINITY
                     )
                 )
         )
@@ -216,11 +252,12 @@ private fun HeroSection(course: Course, categoryColor: String, onBackClick: () -
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color.White)
+                        .background(Color.White.copy(alpha = 0.25f))
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
+                        tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -229,50 +266,54 @@ private fun HeroSection(course: Course, categoryColor: String, onBackClick: () -
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color.White)
+                        .background(Color.White.copy(alpha = 0.25f))
                 ) {
                     Icon(
                         imageVector = Icons.Default.BookmarkBorder,
                         contentDescription = "Bookmark",
+                        tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
                 }
             }
 
-            Column {
+            Column(modifier = Modifier.padding(bottom = 4.dp)) {
                 Surface(
-                    color = themeColor, // Correct colorful badge background
-                    shape = RoundedCornerShape(4.dp)
+                    color = themeColor,
+                    shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
                         text = "// ${course.tags.firstOrNull()?.lowercase() ?: "course"}",
                         color = Color.White,
                         fontSize = 12.sp,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        fontWeight = FontWeight.Bold
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        fontWeight = FontWeight.Black
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = course.title,
-                    color = Color.White,
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    lineHeight = 36.sp
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Black,
+                    lineHeight = 38.sp
                 )
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     course.tags.take(3).forEach { tag ->
                         Surface(
-                            color = themeColor, // Solid category color for chips to match screenshot
-                            shape = RoundedCornerShape(16.dp)
+                            color = PrimaryLight,
+                            shape = RoundedCornerShape(50)
                         ) {
                             Text(
                                 text = tag,
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                                fontWeight = FontWeight.Medium
+                                color = Primary,
+                                fontSize = 14.sp,
+                                modifier = Modifier
+                                    .height(36.dp)
+                                    .padding(horizontal = 16.dp)
+                                    .wrapContentHeight(Alignment.CenterVertically),
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
@@ -283,57 +324,66 @@ private fun HeroSection(course: Course, categoryColor: String, onBackClick: () -
 }
 
 @Composable
-private fun CourseInfoSection(course: Course, categoryColor: String) {
-    val themeColor = try { Color(categoryColor.toColorInt()) } catch (_: Exception) { PrimaryTeal }
-
-    Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp)) {
-        Text(
-            text = course.title,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
+private fun CourseInfoSection(course: Course) {
+    Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp)) {
         Text(
             text = course.subtitle,
             style = MaterialTheme.typography.bodyLarge,
-            color = Color.Gray,
-            modifier = Modifier.padding(top = 4.dp)
+            color = TextSecondary,
+            modifier = Modifier.padding(top = 4.dp),
+            lineHeight = 24.sp
         )
         Row(
-            modifier = Modifier.padding(top = 16.dp),
+            modifier = Modifier.padding(top = 24.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(32.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Default.Star,
                     contentDescription = null,
-                    tint = SecondaryOrange,
-                    modifier = Modifier.size(16.dp)
+                    tint = Star,
+                    modifier = Modifier.size(20.dp)
                 )
                 Text(
                     text = " ${course.rating}",
+                    fontWeight = FontWeight.Black,
+                    fontSize = 16.sp,
+                    color = TextPrimary
+                )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    tint = TextSecondary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = " ${String.format(Locale.US, "%,d", course.studentsEnrolled)}",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+                    fontSize = 15.sp,
+                    color = TextSecondary
                 )
             }
             Text(
-                text = String.format(Locale.US, "%,d", course.studentsEnrolled),
-                fontWeight = FontWeight.Medium,
-                fontSize = 14.sp,
-                color = Color.Gray
-            )
-            Text(
                 text = "🕒 ${course.durationHours}h",
-                fontWeight = FontWeight.Medium,
-                fontSize = 14.sp,
-                color = Color.Gray
-            )
-            Text(
-                text = course.level,
-                color = themeColor, // Correct colorful level text
                 fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
+                fontSize = 15.sp,
+                color = TextSecondary
             )
+            Surface(
+                color = PrimaryLight,
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    text = course.level,
+                    color = Primary,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                )
+            }
         }
     }
 }
@@ -343,45 +393,53 @@ private fun InstructorSection(course: Course) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF9FAFB))
+            .padding(horizontal = 24.dp, vertical = 12.dp),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Border)
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(28.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(60.dp)
                     .clip(CircleShape)
-                    .background(PrimaryTeal),
+                    .background(Primary),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = course.instructor.name.split(" ").mapNotNull { it.firstOrNull() }.joinToString("").take(2).uppercase(),
                     color = Color.White,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Black,
+                    fontSize = 20.sp
                 )
             }
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(20.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = course.instructor.name,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Black,
+                    color = TextPrimary
                 )
                 Text(
                     text = course.instructor.title,
-                    color = Color.Gray,
-                    fontSize = 14.sp
+                    color = TextSecondary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
                 )
             }
             Text(
                 text = "Follow",
-                color = PrimaryTeal,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.clickable { }
+                color = Primary,
+                fontWeight = FontWeight.Black,
+                fontSize = 15.sp,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { }
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
             )
         }
     }
@@ -393,7 +451,7 @@ private fun DescriptionSection(course: Course) {
         text = course.description,
         modifier = Modifier.padding(24.dp),
         style = MaterialTheme.typography.bodyLarge,
-        color = Color.DarkGray,
+        color = TextSecondary,
         lineHeight = 24.sp
     )
 }
@@ -410,12 +468,13 @@ private fun CourseContentHeader(course: Course) {
         Text(
             text = "Course content",
             style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary
         )
         val totalMinutes = course.lessons.sumOf { it.durationMinutes }
         Text(
             text = "${course.lessons.size} lessons · ${totalMinutes} min",
-            color = Color.Gray,
+            color = TextSecondary,
             fontSize = 14.sp
         )
     }
@@ -426,10 +485,11 @@ private fun LessonItem(lesson: Lesson, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 8.dp)
+            .padding(horizontal = 24.dp, vertical = 6.dp)
             .clickable { onClick() },
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF9FAFB))
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Border)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -437,41 +497,42 @@ private fun LessonItem(lesson: Lesson, onClick: () -> Unit) {
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(44.dp)
                     .clip(CircleShape)
-                    .background(if (lesson.isFree) PrimaryTeal.copy(alpha = 0.1f) else Color.LightGray.copy(alpha = 0.2f)),
+                    .background(if (lesson.isFree) PrimaryLight else Border.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = if (lesson.isFree) Icons.Default.PlayArrow else Icons.Default.Lock,
                     contentDescription = null,
-                    tint = if (lesson.isFree) PrimaryTeal else Color.Gray,
-                    modifier = Modifier.size(20.dp)
+                    tint = if (lesson.isFree) Primary else TextSecondary,
+                    modifier = Modifier.size(22.dp)
                 )
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = lesson.title,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
+                    color = TextPrimary
                 )
                 Text(
                     text = "${lesson.durationMinutes} min",
-                    color = Color.Gray,
+                    color = TextSecondary,
                     fontSize = 14.sp
                 )
             }
             if (lesson.isFree) {
                 Surface(
-                    color = PrimaryTeal.copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(4.dp)
+                    color = PrimaryLight,
+                    shape = RoundedCornerShape(6.dp)
                 ) {
                     Text(
                         text = "FREE",
-                        color = PrimaryTeal,
+                        color = Primary,
                         fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.ExtraBold,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }

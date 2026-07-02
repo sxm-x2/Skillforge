@@ -38,7 +38,7 @@ import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.delay
 import com.example.skillforge.data.remote.dto.Course
 import com.example.skillforge.data.remote.dto.Lesson
-import com.example.skillforge.ui.theme.PrimaryTeal
+import com.example.skillforge.ui.theme.*
 import com.example.skillforge.util.UiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,13 +56,13 @@ fun LessonScreen(
     }
 
     Scaffold(
-        containerColor = Color.White
+        containerColor = Background
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             when (val state = uiState) {
                 is UiState.Loading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = PrimaryTeal)
+                        CircularProgressIndicator(color = Primary)
                     }
                 }
                 is UiState.Error -> {
@@ -71,7 +71,7 @@ fun LessonScreen(
                             Text(text = "Error: ${state.message}", color = Color.Red)
                             Button(
                                 onClick = { viewModel.getLessonData(courseId, lessonId) },
-                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal)
+                                colors = ButtonDefaults.buttonColors(containerColor = Primary)
                             ) {
                                 Text("Retry")
                             }
@@ -103,17 +103,22 @@ private fun LessonContent(
     onLessonClick: (String) -> Unit
 ) {
     val context = LocalContext.current
-    val exoPlayer = remember {
-        ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.fromUri(currentLesson.videoUrl))
-            prepare()
-            playWhenReady = true
-        }
+    val isVideoValid = currentLesson.videoUrl.isNotBlank() && 
+                      (currentLesson.videoUrl.startsWith("http") || currentLesson.videoUrl.startsWith("content"))
+
+    val exoPlayer = remember(currentLesson.id) {
+        if (isVideoValid) {
+            ExoPlayer.Builder(context).build().apply {
+                setMediaItem(MediaItem.fromUri(currentLesson.videoUrl))
+                prepare()
+                playWhenReady = true
+            }
+        } else null
     }
 
     var currentPosition by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
-    var isPlaying by remember { mutableStateOf(exoPlayer.isPlaying) }
+    var isPlaying by remember { mutableStateOf(exoPlayer?.isPlaying ?: false) }
     var playbackError by remember { mutableStateOf<String?>(null) }
 
     DisposableEffect(exoPlayer) {
@@ -124,7 +129,7 @@ private fun LessonContent(
 
             override fun onPlaybackStateChanged(state: Int) {
                 if (state == Player.STATE_READY) {
-                    duration = exoPlayer.duration.coerceAtLeast(0L)
+                    duration = exoPlayer?.duration?.coerceAtLeast(0L) ?: 0L
                 }
             }
 
@@ -132,22 +137,15 @@ private fun LessonContent(
                 playbackError = error.message
             }
         }
-        exoPlayer.addListener(listener)
+        exoPlayer?.addListener(listener)
         onDispose {
-            exoPlayer.removeListener(listener)
-            exoPlayer.release()
+            exoPlayer?.removeListener(listener)
+            exoPlayer?.release()
         }
     }
 
-    LaunchedEffect(currentLesson.videoUrl) {
-        playbackError = null
-        exoPlayer.setMediaItem(MediaItem.fromUri(currentLesson.videoUrl))
-        exoPlayer.prepare()
-        exoPlayer.playWhenReady = true
-    }
-
     LaunchedEffect(isPlaying) {
-        if (isPlaying) {
+        if (isPlaying && exoPlayer != null) {
             while (true) {
                 currentPosition = exoPlayer.currentPosition
                 delay(1000L)
@@ -163,15 +161,36 @@ private fun LessonContent(
                 .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
                 .background(Color.Black)
         ) {
-            AndroidView(
-                factory = {
-                    PlayerView(it).apply {
-                        player = exoPlayer
-                        useController = false 
+            if (isVideoValid && exoPlayer != null) {
+                AndroidView(
+                    factory = {
+                        PlayerView(it).apply {
+                            player = exoPlayer
+                            useController = false 
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.3f),
+                            modifier = Modifier.size(64.dp)
+                        )
+                        Text(
+                            text = "Video preview not available",
+                            color = Color.White.copy(alpha = 0.5f),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
+                }
+            }
             
             Row(
                 modifier = Modifier
@@ -214,13 +233,13 @@ private fun LessonContent(
                 isPlayingLocally = isPlaying
             }
             
-            if (playbackError == null) {
+            if (isVideoValid && playbackError == null) {
                 IconButton(
                     onClick = {
-                        if (exoPlayer.isPlaying) {
+                        if (exoPlayer?.isPlaying == true) {
                             exoPlayer.pause()
                         } else {
-                            exoPlayer.play()
+                            exoPlayer?.play()
                         }
                     },
                     modifier = Modifier
@@ -236,7 +255,7 @@ private fun LessonContent(
                         tint = Color.Black
                     )
                 }
-            } else {
+            } else if (isVideoValid) {
                 Column(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -256,10 +275,10 @@ private fun LessonContent(
                     Button(
                         onClick = {
                             playbackError = null
-                            exoPlayer.prepare()
-                            exoPlayer.play()
+                            exoPlayer?.prepare()
+                            exoPlayer?.play()
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryTeal),
+                        colors = ButtonDefaults.buttonColors(containerColor = Primary),
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text("Retry")
@@ -268,33 +287,34 @@ private fun LessonContent(
             }
 
             // Duration Bar Section
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 24.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+            if (isVideoValid) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 24.dp)
                 ) {
-                    Text(
-                        text = formatTime(currentPosition),
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    
-                    Slider(
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = formatTime(currentPosition),
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        
+                        Slider(
                         value = if (duration > 0) currentPosition.toFloat() / duration else 0f,
                         onValueChange = {
-                            exoPlayer.seekTo((it * duration).toLong())
-                            currentPosition = exoPlayer.currentPosition
+                            exoPlayer?.seekTo((it * duration).toLong())
+                            currentPosition = exoPlayer?.currentPosition ?: 0L
                         },
                         colors = SliderDefaults.colors(
                             thumbColor = Color.White,
-                            activeTrackColor = PrimaryTeal,
+                            activeTrackColor = Primary,
                             inactiveTrackColor = Color.White.copy(alpha = 0.3f)
                         ),
                         modifier = Modifier
@@ -315,19 +335,20 @@ private fun LessonContent(
                                 thumbTrackGapSize = 0.dp,
                                 trackInsideCornerSize = 4.dp,
                                 colors = SliderDefaults.colors(
-                                    activeTrackColor = PrimaryTeal,
+                                    activeTrackColor = Primary,
                                     inactiveTrackColor = Color.White.copy(alpha = 0.3f)
                                 )
                             )
                         }
                     )
 
-                    Text(
-                        text = formatTime(duration),
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
+                        Text(
+                            text = formatTime(duration),
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
         }
@@ -343,7 +364,7 @@ private fun LessonInfoSection(course: Course, lesson: Lesson) {
     Column(modifier = Modifier.padding(24.dp)) {
         Text(
             text = "LESSON ${course.lessons.indexOf(lesson) + 1} · ${course.title.uppercase()}",
-            color = PrimaryTeal,
+            color = Primary,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold
         )
@@ -351,12 +372,13 @@ private fun LessonInfoSection(course: Course, lesson: Lesson) {
             text = lesson.title,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(top = 8.dp)
+            modifier = Modifier.padding(top = 8.dp),
+            color = TextPrimary
         )
         Text(
             text = lesson.content,
             style = MaterialTheme.typography.bodyLarge,
-            color = Color.Gray,
+            color = TextSecondary,
             modifier = Modifier.padding(top = 8.dp),
             lineHeight = 24.sp
         )
@@ -376,16 +398,16 @@ private fun LessonTabs(
     Column {
         TabRow(
             selectedTabIndex = selectedTab,
-            containerColor = Color.White,
-            contentColor = PrimaryTeal,
+            containerColor = Surface,
+            contentColor = Primary,
             indicator = { tabPositions ->
                 TabRowDefaults.SecondaryIndicator(
                     Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                    color = PrimaryTeal,
+                    color = Primary,
                     height = 3.dp
                 )
             },
-            divider = {}
+            divider = { HorizontalDivider(color = Border) }
         ) {
             tabs.forEachIndexed { index, title ->
                 Tab(
@@ -398,7 +420,7 @@ private fun LessonTabs(
                             fontSize = 16.sp
                         )
                     },
-                    unselectedContentColor = Color.Gray
+                    unselectedContentColor = TextSecondary
                 )
             }
         }
@@ -444,53 +466,54 @@ private fun LessonListItem(
             .clickable { onClick() },
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isActive) PrimaryTeal.copy(alpha = 0.05f) else Color(0xFFF9FAFB)
+            containerColor = if (isActive) PrimaryLight else Surface
         ),
-        border = if (isActive) androidx.compose.foundation.BorderStroke(1.dp, PrimaryTeal.copy(alpha = 0.5f)) else null
+        border = if (isActive) androidx.compose.foundation.BorderStroke(1.5.dp, Primary.copy(alpha = 0.5f)) else androidx.compose.foundation.BorderStroke(1.dp, Border)
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(18.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(44.dp)
                     .clip(CircleShape)
-                    .background(if (isActive) PrimaryTeal else if (lesson.isFree) PrimaryTeal.copy(alpha = 0.1f) else Color.LightGray.copy(alpha = 0.2f)),
+                    .background(if (isActive) Primary else if (lesson.isFree) PrimaryLight else Border.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = if (isActive) Icons.Default.Pause else if (lesson.isFree) Icons.Default.PlayArrow else Icons.Default.Lock,
                     contentDescription = null,
-                    tint = if (isActive) Color.White else if (lesson.isFree) PrimaryTeal else Color.Gray,
-                    modifier = Modifier.size(20.dp)
+                    tint = if (isActive) Color.White else if (lesson.isFree) Primary else TextSecondary,
+                    modifier = Modifier.size(22.dp)
                 )
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = lesson.title,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    color = if (isActive) PrimaryTeal else Color.Black
+                    color = if (isActive) Primary else TextPrimary
                 )
                 Text(
                     text = if (isActive) "Now playing · ${lesson.durationMinutes} min" else "${lesson.durationMinutes} min",
-                    color = if (isActive) PrimaryTeal.copy(alpha = 0.7f) else Color.Gray,
-                    fontSize = 14.sp
+                    color = if (isActive) Primary.copy(alpha = 0.8f) else TextSecondary,
+                    fontSize = 13.sp,
+                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium
                 )
             }
             if (!isActive && lesson.isFree) {
                 Surface(
-                    color = PrimaryTeal.copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(4.dp)
+                    color = PrimaryLight,
+                    shape = RoundedCornerShape(6.dp)
                 ) {
                     Text(
                         text = "FREE",
-                        color = PrimaryTeal,
+                        color = Primary,
                         fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                     )
                 }
             }
@@ -506,7 +529,7 @@ private fun PlaceholderTab(message: String) {
             .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(text = message, color = Color.Gray)
+        Text(text = message, color = TextSecondary)
     }
 }
 

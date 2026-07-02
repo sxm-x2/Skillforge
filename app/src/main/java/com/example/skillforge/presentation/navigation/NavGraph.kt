@@ -1,5 +1,9 @@
 package com.example.skillforge.presentation.navigation
 
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -20,13 +24,19 @@ fun NavGraph(navController: NavHostController) {
     
     NavHost(
         navController = navController,
-        startDestination = Screen.Home
+        startDestination = Screen.Home,
+        enterTransition = { slideInHorizontally { it } + fadeIn() },
+        exitTransition = { slideOutHorizontally { -it } + fadeOut() },
+        popEnterTransition = { slideInHorizontally { -it } + fadeIn() },
+        popExitTransition = { slideOutHorizontally { it } + fadeOut() }
     ) {
         composable<Screen.Home> {
             HomeScreen(
                 viewModel = viewModel(factory = factory),
                 onCourseClick = { courseId ->
-                    navController.navigate(Screen.CourseDetail(courseId))
+                    navController.navigate(Screen.CourseDetail(courseId)) {
+                        launchSingleTop = true
+                    }
                 }
             )
         }
@@ -36,7 +46,9 @@ fun NavGraph(navController: NavHostController) {
                 courseId = route.courseId,
                 viewModel = viewModel(factory = factory),
                 onLessonClick = { lessonId ->
-                    navController.navigate(Screen.Lesson(route.courseId, lessonId))
+                    navController.navigate(Screen.Lesson(route.courseId, lessonId)) {
+                        launchSingleTop = true
+                    }
                 },
                 onBackClick = {
                     navController.popBackStack()
